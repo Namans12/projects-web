@@ -1,0 +1,58 @@
+[
+  {
+    "id": "video-analyzer",
+    "title": "Video Analyzer",
+    "repoUrl": "https://github.com/Namans12/4K-Videolyzer-2.git",
+    "status": "done",
+    "favorite": false
+  },
+  {
+    "id": "music-piper",
+    "title": "Music Piper",
+    "repoUrl": "https://github.com/Namans12/musicpipeline--best.git",
+    "status": "done",
+    "favorite": false
+  },
+  {
+    "id": "water-blogger",
+    "title": "Water Blogger",
+    "repoUrl": "https://github.com/Namans12/water-logger.git",
+    "status": "done",
+    "favorite": false
+  },
+  {
+    "id": "health-hub",
+    "title": "Health Hub",
+    "repoUrl": "https://github.com/Namans12/health-hub.git",
+    "status": "done",
+    "favorite": false
+  },
+  {
+    "id": "watcher",
+    "title": "Watcher",
+    "repoUrl": "https://github.com/Namans12/watchlist.git",
+    "status": "done",
+    "favorite": false
+  },
+  {
+    "id": "invoice-dashboard",
+    "title": "Invoice Dashboard",
+    "repoUrl": "https://github.com/your-username/invoice-dashboard",
+    "status": "pending",
+    "favorite": false
+  },
+  {
+    "id": "cli-repo-reporter",
+    "title": "CLI Repo Reporter",
+    "repoUrl": "https://github.com/your-username/repo-reporter",
+    "status": "pending",
+    "favorite": false
+  },
+  {
+    "id": "changelog-generator",
+    "title": "Changelog Generator",
+    "repoUrl": "https://github.com/your-username/changelog-generator",
+    "status": "pending",
+    "favorite": false
+  }
+]
