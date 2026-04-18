@@ -31,19 +31,35 @@
   --manager-bg: #f4dcc0;
   --manager-main: #78401a;
   --heart-color: #db5d87;
+  --heart-outline-color: #000;
   --search-accent: #d98531;
   --search-surface: rgba(255, 249, 240, 0.92);
   --check-surface: #ece0cf;
   --check-glow-dark: rgba(154, 112, 54, 0.26);
   --check-glow-light: rgba(255, 255, 255, 0.72);
   --checkmark-color: #a45a1d;
+  --github-hover-color: #7dffb0;
+  --scrollbar-track: rgba(244, 220, 192, 0.76);
+  --scrollbar-thumb: linear-gradient(180deg, #e4a457 0%, #cf7f2b 52%, #9d5418 100%);
+  --scrollbar-thumb-border: rgba(255, 246, 233, 0.8);
+  --scrollbar-thumb-hover: linear-gradient(180deg, #ebb56d 0%, #dc8f3a 52%, #af5f22 100%);
+  --scrollbar-corner: rgba(244, 220, 192, 0.3);
+  --page-scrollbar-track: #e99a58;
+  --page-scrollbar-track-fill: var(--bg);
+  --page-scrollbar-track-border: rgba(255, 243, 226, 0.18);
+  --page-scrollbar-corner: #e99a58;
 }
 
 html {
   scroll-behavior: smooth;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text) 30%, transparent) var(--page-scrollbar-track);
+  background: var(--bg);
 }
 
-body.dark {
+body.dark,
+html.dark {
   color-scheme: dark;
   --bg: linear-gradient(to right top, #27354a, #272e3e, #252731, #212126, #1b1b1b);
   --surface: rgba(20, 22, 30, 0.72);
@@ -69,12 +85,23 @@ body.dark {
   --manager-bg: #1d2330;
   --manager-main: #a9efcf;
   --heart-color: #7dffb0;
+  --heart-outline-color: #fff;
   --search-accent: #6fdcaf;
   --search-surface: rgba(22, 28, 38, 0.94);
   --check-surface: #242b37;
   --check-glow-dark: rgba(0, 0, 0, 0.45);
   --check-glow-light: rgba(129, 167, 154, 0.1);
   --checkmark-color: #7dffb0;
+  --github-hover-color: #7dffb0;
+  --scrollbar-track: rgba(23, 29, 38, 0.9);
+  --scrollbar-thumb: linear-gradient(180deg, #6be0b1 0%, #3aa37a 52%, #1d6b52 100%);
+  --scrollbar-thumb-border: rgba(11, 16, 24, 0.82);
+  --scrollbar-thumb-hover: linear-gradient(180deg, #86efc5 0%, #4cbd90 52%, #2a8162 100%);
+  --scrollbar-corner: rgba(18, 24, 34, 0.55);
+  --page-scrollbar-track: #1d2129;
+  --page-scrollbar-track-fill: #1d2129;
+  --page-scrollbar-track-border: rgba(255, 255, 255, 0.08);
+  --page-scrollbar-corner: #1d2129;
 }
 
 * {
@@ -89,6 +116,66 @@ body {
   color: var(--text);
   transition: background 0.6s ease, color 0.4s ease;
   overflow-x: hidden;
+}
+
+html,
+body,
+.form {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--text) 30%, transparent) var(--scrollbar-track);
+}
+
+html,
+body {
+  scrollbar-color: color-mix(in srgb, var(--text) 30%, transparent) var(--page-scrollbar-track);
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+.form::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: var(--page-scrollbar-track-fill);
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--page-scrollbar-track-border);
+}
+
+.form::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+  border-radius: 999px;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--surface-border) 65%, transparent),
+    inset 0 0 12px rgba(0, 0, 0, 0.08);
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb,
+.form::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-thumb-border);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.28),
+    0 4px 10px rgba(0, 0, 0, 0.14);
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover,
+.form::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+
+html::-webkit-scrollbar-corner,
+body::-webkit-scrollbar-corner {
+  background: var(--page-scrollbar-corner);
+}
+
+.form::-webkit-scrollbar-corner {
+  background: var(--scrollbar-corner);
 }
 
 body::before,
@@ -379,10 +466,11 @@ body:not(.dark) .project-card--favorite {
 
 .project-card__actions {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
   margin-top: auto;
+  width: 100%;
 }
 
 .project-github-link {
@@ -403,7 +491,7 @@ body:not(.dark) .project-card--favorite {
 
 .project-github-link:hover,
 .project-github-link:focus-visible {
-  color: var(--checkmark-color);
+  color: var(--github-hover-color);
   transform: translateY(-2px) scale(1.05);
   opacity: 1;
 }
@@ -1249,6 +1337,12 @@ body.dark .project-manager-row {
   cursor: pointer;
 }
 
+.project-tickbox--pending {
+  width: 44px;
+  height: 44px;
+  align-self: flex-end;
+}
+
 .project-tickbox input {
   opacity: 0;
   width: 0;
@@ -1267,6 +1361,12 @@ body.dark .project-manager-row {
   box-shadow:
     4px 4px 8px var(--check-glow-dark),
     -4px -4px 8px var(--check-glow-light);
+}
+
+.project-tickbox--pending .checkmark {
+  height: 44px;
+  width: 44px;
+  border-radius: 10px;
 }
 
 .project-tickbox .checkmark::before,
@@ -1288,12 +1388,24 @@ body.dark .project-manager-row {
   transition: all 0.3s cubic-bezier(0.5, -1, 0.5, 2);
 }
 
+.project-tickbox--pending .checkmark::before {
+  left: 10px;
+  top: 19px;
+  width: 15px;
+}
+
 .project-tickbox .checkmark::after {
   left: 21px;
   top: 40px;
   width: 34px;
   transform: rotate(-45deg) scale(0);
   transition: all 0.4s cubic-bezier(0.5, -1, 0.5, 2);
+}
+
+.project-tickbox--pending .checkmark::after {
+  left: 17px;
+  top: 31px;
+  width: 24px;
 }
 
 .project-tickbox input:checked + .checkmark {
@@ -1412,10 +1524,17 @@ body.dark .project-manager-row {
 
 .heart-container .svg-outline,
 .heart-container .svg-filled {
-  fill: var(--heart-color);
   position: absolute;
   width: 28px;
   height: 28px;
+}
+
+.heart-container .svg-outline {
+  fill: var(--heart-outline-color);
+}
+
+.heart-container .svg-filled {
+  fill: var(--heart-color);
 }
 
 .heart-container .svg-filled {

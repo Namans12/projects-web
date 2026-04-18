@@ -136,7 +136,7 @@ test.describe("Projects UI", () => {
     await page.locator("#open-manager-button").click();
     await expect(page.locator("#manager-modal")).toBeVisible();
 
-    await page.locator('.manager-favorite-input[data-project-id="invoice-dashboard"]').check();
+    await page.locator('.manager-favorite-input[data-project-id="invoice-dashboard"]').click();
     await stabilize(page);
     await expect(page.locator('.manager-favorite-input[data-project-id="invoice-dashboard"]')).toBeChecked();
 
@@ -154,5 +154,64 @@ test.describe("Projects UI", () => {
     await stabilize(page);
     await expect(page.locator(".project-card")).toHaveCount(1);
     await expect(page.locator(".project-card")).toContainText("Invoice Dashboard");
+  });
+
+  test("github icon keeps the same bottom offset in pending and done cards", async ({ page }) => {
+    await page.goto("/");
+    await stabilize(page);
+
+    const pendingMetrics = await page.locator(".project-card").first().evaluate((card) => {
+      const icon = card.querySelector(".project-github-link");
+      if (!icon) {
+        throw new Error("Missing pending github link");
+      }
+
+      const cardRect = card.getBoundingClientRect();
+      const iconRect = icon.getBoundingClientRect();
+
+      return {
+        bottomOffset: Math.round((cardRect.bottom - iconRect.bottom) * 100) / 100,
+        leftOffset: Math.round((iconRect.left - cardRect.left) * 100) / 100,
+      };
+    });
+
+    await page.locator("#status-toggle").click();
+    await stabilize(page);
+
+    const doneMetrics = await page.locator(".project-card").first().evaluate((card) => {
+      const icon = card.querySelector(".project-github-link");
+      if (!icon) {
+        throw new Error("Missing done github link");
+      }
+
+      const cardRect = card.getBoundingClientRect();
+      const iconRect = icon.getBoundingClientRect();
+
+      return {
+        bottomOffset: Math.round((cardRect.bottom - iconRect.bottom) * 100) / 100,
+        leftOffset: Math.round((iconRect.left - cardRect.left) * 100) / 100,
+      };
+    });
+
+    expect(Math.abs(pendingMetrics.bottomOffset - doneMetrics.bottomOffset)).toBeLessThanOrEqual(1);
+    expect(Math.abs(pendingMetrics.leftOffset - doneMetrics.leftOffset)).toBeLessThanOrEqual(1);
+  });
+
+  test("page shell does not shift horizontally when scrollbar state changes", async ({ page }) => {
+    await page.goto("/");
+    await stabilize(page);
+
+    const pendingLeft = await page.locator(".hero").evaluate((element) => {
+      return Math.round(element.getBoundingClientRect().left * 100) / 100;
+    });
+
+    await page.locator("#status-toggle").click();
+    await stabilize(page);
+
+    const doneLeft = await page.locator(".hero").evaluate((element) => {
+      return Math.round(element.getBoundingClientRect().left * 100) / 100;
+    });
+
+    expect(Math.abs(pendingLeft - doneLeft)).toBeLessThanOrEqual(1);
   });
 });
