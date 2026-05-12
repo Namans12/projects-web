@@ -6,6 +6,7 @@ export type Project = {
   repoUrl: string;
   status: ProjectStatus;
   favorite: boolean;
+  favoriteOrder: number | null;
 };
 
 export type ProjectInput = {
@@ -13,4 +14,5 @@ export type ProjectInput = {
   repoUrl: string;
   status: ProjectStatus;
   favorite: boolean;
+  favoriteOrder?: number | null;
 };

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Project } from "../types";
 
 const githubIcon = (
@@ -19,12 +20,16 @@ export const ProjectCard = ({
   onFavoriteChange,
   onRequestDone,
 }: ProjectCardProps) => {
+  const [pendingHoverPreview, setPendingHoverPreview] = useState(false);
   const favoriteId = `favorite-${project.id}`;
   const doneId = `done-${project.id}`;
   const showDoneToggle = project.status !== "done";
 
   return (
-    <article className={`project-card card-gradient-${index % 20}${project.favorite ? " project-card--favorite" : ""}`}>
+    <article
+      className={`project-card card-gradient-${index % 20}${project.favorite ? " project-card--favorite" : ""}`}
+      data-project-id={project.id}
+    >
       <div className="project-card__top">
         <h2>{project.title}</h2>
         <div title="Favorite" className="heart-container project-favorite-toggle">
@@ -43,14 +48,6 @@ export const ProjectCard = ({
             <svg xmlns="http://www.w3.org/2000/svg" className="svg-filled" viewBox="0 0 24 24">
               <path d="M17.5,1.917a6.4,6.4,0,0,0-5.5,3.3,6.4,6.4,0,0,0-5.5-3.3A6.8,6.8,0,0,0,0,8.967c0,4.547,4.786,9.513,8.8,12.88a4.974,4.974,0,0,0,6.4,0C19.214,18.48,24,13.514,24,8.967A6.8,6.8,0,0,0,17.5,1.917Z"></path>
             </svg>
-            <svg xmlns="http://www.w3.org/2000/svg" height="100" width="100" className="svg-celebrate">
-              <polygon points="10,10 20,20"></polygon>
-              <polygon points="10,50 20,50"></polygon>
-              <polygon points="20,80 30,70"></polygon>
-              <polygon points="90,10 80,20"></polygon>
-              <polygon points="90,50 80,50"></polygon>
-              <polygon points="80,80 70,70"></polygon>
-            </svg>
           </div>
         </div>
       </div>
@@ -66,7 +63,17 @@ export const ProjectCard = ({
           {githubIcon}
         </a>
         {showDoneToggle ? (
-          <label className="project-tickbox project-tickbox--pending" data-project-id={project.id} htmlFor={doneId}>
+          <label
+            className={`project-tickbox project-tickbox--pending${pendingHoverPreview ? " project-tickbox--preview" : ""}`}
+            data-project-id={project.id}
+            htmlFor={doneId}
+            onMouseEnter={() => setPendingHoverPreview(true)}
+            onMouseLeave={() => setPendingHoverPreview(false)}
+            onPointerEnter={() => setPendingHoverPreview(true)}
+            onPointerLeave={() => setPendingHoverPreview(false)}
+            onFocus={() => setPendingHoverPreview(true)}
+            onBlur={() => setPendingHoverPreview(false)}
+          >
             <input
               id={doneId}
               type="checkbox"
@@ -75,7 +82,12 @@ export const ProjectCard = ({
                 onRequestDone(project.id);
               }}
             />
-            <div className="checkmark"></div>
+            <div className="checkmark">
+              <svg className="tick-mark" viewBox="0 0 58 58" aria-hidden="true">
+                <path className="tick-path tick-stroke--short" d="M17 30.5L25 38.5" />
+                <path className="tick-path tick-stroke--long" d="M25 38.5L42 21.5" />
+              </svg>
+            </div>
           </label>
         ) : null}
       </div>

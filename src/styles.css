@@ -34,6 +34,14 @@
   --heart-outline-color: #000;
   --search-accent: #d98531;
   --search-surface: rgba(255, 249, 240, 0.92);
+  --search-text: #1f1a17;
+  --search-expanded-bg: #f8e7d0;
+  --search-outline: #191a1e;
+  --search-icon-color: #78401a;
+  --search-shadow-outer-dark: #c68c4b;
+  --search-shadow-outer-light: rgb(255 248 239 / 55%);
+  --search-shadow-inner-dark: #d09b5f;
+  --search-shadow-inner-light: #fff8ef;
   --check-surface: #ece0cf;
   --check-glow-dark: rgba(154, 112, 54, 0.26);
   --check-glow-light: rgba(255, 255, 255, 0.72);
@@ -88,6 +96,14 @@ html.dark {
   --heart-outline-color: #fff;
   --search-accent: #6fdcaf;
   --search-surface: rgba(22, 28, 38, 0.94);
+  --search-text: #f8f3eb;
+  --search-expanded-bg: #191a1e;
+  --search-outline: #f8f3eb;
+  --search-icon-color: #f8f3eb;
+  --search-shadow-outer-dark: #0e0e0e;
+  --search-shadow-outer-light: rgb(95 94 94 / 25%);
+  --search-shadow-inner-dark: #0e0e0e;
+  --search-shadow-inner-light: #5f5e5e;
   --check-surface: #242b37;
   --check-glow-dark: rgba(0, 0, 0, 0.45);
   --check-glow-light: rgba(129, 167, 154, 0.1);
@@ -248,8 +264,8 @@ body::after {
 h1 {
   margin: 0;
   font-size: clamp(3rem, 7vw, 6.5rem);
-  line-height: 0.95;
-  letter-spacing: -0.04em;
+  line-height: 1;
+  letter-spacing: -0.03em;
 }
 
 .hero-top {
@@ -263,6 +279,8 @@ h1 {
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
+  transform: translateY(-4px);
 }
 
 .hero-tools {
@@ -272,28 +290,52 @@ h1 {
 }
 
 .add-project-button {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  border: 1px solid var(--surface-border);
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.32), rgba(255, 255, 255, 0.08));
-  color: var(--text);
-  font-size: 1.9rem;
-  line-height: 1;
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 0;
+  background-color: var(--search-expanded-bg);
+  color: var(--search-icon-color);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  box-shadow: var(--card-shadow);
-  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+  box-shadow:
+    1.5px 1.5px 3px var(--search-shadow-outer-dark),
+    -1.5px -1.5px 3px var(--search-shadow-outer-light),
+    inset 0 0 0 var(--search-shadow-inner-dark),
+    inset 0 0 0 var(--search-shadow-inner-light);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, color 0.2s ease;
 }
 
 .add-project-button:hover,
 .add-project-button:focus-visible {
-  transform: translateY(-2px) scale(1.03);
-  border-color: rgba(240, 168, 79, 0.7);
+  transform: none;
 }
 
 .add-project-button:focus-visible {
-  outline: 2px solid rgba(240, 168, 79, 0.7);
+  outline: 2px solid color-mix(in srgb, var(--search-accent) 58%, transparent);
   outline-offset: 2px;
+}
+
+.add-project-button:active {
+  transform: translateY(0);
+  box-shadow:
+    0 0 0 var(--search-shadow-outer-dark),
+    0 0 0 var(--search-shadow-outer-light),
+    inset 1.5px 1.5px 3px var(--search-shadow-inner-dark),
+    inset -1.5px -1.5px 3px var(--search-shadow-inner-light);
+}
+
+.add-project-button__plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1;
+  width: 100%;
+  height: 100%;
 }
 
 .status-banner {
@@ -369,9 +411,15 @@ body:not(.dark) .project-grid::after {
   box-shadow:
     0 18px 34px rgba(0, 0, 0, 0.34),
     0 4px 12px rgba(0, 0, 0, 0.22);
-  transition: transform 0.25s ease, background 0.25s ease, box-shadow 0.25s ease;
+  transition:
+    transform 0.3s cubic-bezier(0.22, 1, 0.36, 1),
+    background 0.25s ease,
+    box-shadow 0.28s ease,
+    filter 0.28s ease;
   position: relative;
   overflow: hidden;
+  will-change: transform;
+  backface-visibility: hidden;
 }
 
 .project-card::before {
@@ -427,6 +475,11 @@ body:not(.dark) .project-card::after {
 .project-card:hover,
 .project-card:focus-within {
   transform: translateY(-6px);
+}
+
+.project-card--reordering {
+  z-index: 3;
+  filter: saturate(1.05) brightness(1.04);
 }
 
 .project-card--favorite {
@@ -526,65 +579,73 @@ body:not(.dark) .project-card--favorite {
   align-items: center;
 }
 
-.search-input-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 15px;
+.project-search-container {
   position: relative;
+  --size-button: 40px;
+  color: var(--search-icon-color);
 }
 
-.search-input {
-  border-style: none;
-  height: 50px;
-  width: 50px;
-  padding: 10px 46px 10px 14px;
+.project-search-input {
+  padding-left: var(--size-button);
+  height: var(--size-button);
+  font-size: 15px;
+  border: 0;
+  color: var(--search-text);
   outline: none;
-  border-radius: 999px;
-  transition: 0.5s ease-in-out;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--search-surface) 92%, white 8%), color-mix(in srgb, var(--search-accent) 18%, var(--search-surface)));
+  width: var(--size-button);
+  transition: all ease 0.3s;
+  background-color: var(--search-expanded-bg);
   box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--surface-border) 90%, transparent),
-    0 12px 28px rgba(0, 0, 0, 0.1);
-  color: var(--text);
+    1.5px 1.5px 3px var(--search-shadow-outer-dark),
+    -1.5px -1.5px 3px var(--search-shadow-outer-light),
+    inset 0 0 0 var(--search-shadow-inner-dark),
+    inset 0 0 0 var(--search-shadow-inner-light);
+  border-radius: 50px;
+  cursor: pointer;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 1rem;
 }
 
-.search-input::placeholder {
-  color: color-mix(in srgb, var(--muted) 78%, transparent);
+.project-search-input:focus,
+.project-search-input:not(:placeholder-shown) {
+  width: 200px;
+  cursor: text;
+  box-shadow:
+    0 0 0 var(--search-shadow-outer-dark),
+    0 0 0 var(--search-shadow-outer-light),
+    inset 1.5px 1.5px 3px var(--search-shadow-inner-dark),
+    inset -1.5px -1.5px 3px var(--search-shadow-inner-light);
 }
 
-.search-icon {
+.project-search-input:focus {
+  outline: transparent;
+}
+
+.project-search-input::placeholder {
+  color: color-mix(in srgb, var(--search-text) 72%, transparent);
+}
+
+.project-search-input:focus + .project-search-icon,
+.project-search-input:not(:placeholder-shown) + .project-search-icon {
+  pointer-events: all;
+  cursor: pointer;
+}
+
+.project-search-icon {
+  position: absolute;
+  width: var(--size-button);
+  height: var(--size-button);
+  top: 0;
+  left: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  position: absolute;
-  right: 0;
-  cursor: pointer;
-  width: 50px;
-  height: 50px;
-  outline: none;
-  border: none;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--text);
-  transition: color 0.2s linear;
+  padding: 8px;
+  pointer-events: none;
 }
 
-.search-icon:hover,
-.search-icon:focus-visible {
-  color: var(--search-accent);
-}
-
-.search-icon:focus ~ .search-input,
-.search-input:focus,
-.search-input:not(:placeholder-shown) {
-  width: 250px;
-  border-radius: 18px;
-  box-shadow:
-    0 0 0 1px color-mix(in srgb, var(--search-accent) 45%, transparent),
-    0 16px 32px rgba(0, 0, 0, 0.14);
+.project-search-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .repo-manager-fab:hover,
@@ -814,6 +875,7 @@ body:not(.dark) .project-card--favorite {
   flex-shrink: 0;
   margin-top: 0;
   touch-action: manipulation;
+  justify-self: end;
 }
 
 .status-switch .switch__base-outer,
@@ -1355,6 +1417,7 @@ body.dark .project-manager-row {
   left: 0;
   height: 58px;
   width: 58px;
+  overflow: visible;
   background: linear-gradient(145deg, color-mix(in srgb, var(--check-surface) 92%, white 8%), color-mix(in srgb, var(--check-surface) 90%, black 10%));
   border-radius: 12px;
   transition: all 0.4s cubic-bezier(0.42, 0, 0.58, 1);
@@ -1369,43 +1432,29 @@ body.dark .project-manager-row {
   border-radius: 10px;
 }
 
-.project-tickbox .checkmark::before,
-.project-tickbox .checkmark::after {
-  content: "";
+.project-tickbox .tick-mark {
   position: absolute;
-  background: var(--checkmark-color);
-  height: 5px;
-  border-radius: 2px;
-  transform-origin: 0 0;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  z-index: 1;
+}
+
+.project-tickbox .tick-path {
+  fill: none;
+  stroke: var(--checkmark-color);
+  stroke-width: 5.5px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pathLength: 1;
   opacity: 0;
-}
-
-.project-tickbox .checkmark::before {
-  left: 13px;
-  top: 25px;
-  width: 20px;
-  transform: rotate(45deg) scale(0);
-  transition: all 0.3s cubic-bezier(0.5, -1, 0.5, 2);
-}
-
-.project-tickbox--pending .checkmark::before {
-  left: 10px;
-  top: 19px;
-  width: 15px;
-}
-
-.project-tickbox .checkmark::after {
-  left: 21px;
-  top: 40px;
-  width: 34px;
-  transform: rotate(-45deg) scale(0);
-  transition: all 0.4s cubic-bezier(0.5, -1, 0.5, 2);
-}
-
-.project-tickbox--pending .checkmark::after {
-  left: 17px;
-  top: 31px;
-  width: 24px;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  transition:
+    opacity 0.16s ease,
+    stroke 0.16s ease,
+    stroke-dashoffset 0.32s cubic-bezier(0.5, -0.4, 0.5, 1.4);
 }
 
 .project-tickbox input:checked + .checkmark {
@@ -1415,27 +1464,14 @@ body.dark .project-manager-row {
     inset -2px -2px 4px var(--check-glow-light);
 }
 
-.project-tickbox input:checked + .checkmark::before {
+.project-tickbox input:checked + .checkmark .tick-path {
   opacity: 1;
-  transform: rotate(45deg) scale(1);
+  stroke-dashoffset: 0;
 }
 
-.project-tickbox input:checked + .checkmark::after {
-  opacity: 1;
-  transform: rotate(-45deg) scale(1);
-  transition-delay: 0.15s;
-}
-
-.project-tickbox input:not(:checked) + .checkmark::after {
+.project-tickbox input:not(:checked) + .checkmark .tick-path {
   opacity: 0;
-  transform: rotate(-45deg) scale(0);
-  transition-delay: 0s;
-}
-
-.project-tickbox input:not(:checked) + .checkmark::before {
-  opacity: 0;
-  transform: rotate(45deg) scale(0);
-  transition-delay: 0.15s;
+  stroke-dashoffset: 1;
 }
 
 .project-tickbox:hover .checkmark {
@@ -1443,6 +1479,29 @@ body.dark .project-manager-row {
     5px 5px 10px color-mix(in srgb, var(--check-glow-dark) 88%, transparent),
     -5px -5px 10px color-mix(in srgb, var(--check-glow-light) 92%, transparent);
   transform: scale(1.05);
+}
+
+.project-tickbox.project-tickbox--preview input + .checkmark .tick-path {
+  opacity: 1;
+  stroke: color-mix(in srgb, var(--status-on) 84%, #2f7a45);
+  stroke-dashoffset: 0;
+  transition:
+    opacity 0.12s ease,
+    stroke 0.12s ease,
+    stroke-dashoffset 0.18s ease;
+}
+
+.project-tickbox.project-tickbox--preview input + .checkmark {
+  background: linear-gradient(
+    145deg,
+    color-mix(in srgb, var(--check-surface) 82%, white 18%),
+    color-mix(in srgb, var(--status-on) 18%, var(--check-surface))
+  );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--status-on) 55%, transparent),
+    5px 5px 10px color-mix(in srgb, var(--check-glow-dark) 88%, transparent),
+    -5px -5px 10px color-mix(in srgb, var(--check-glow-light) 92%, transparent),
+    0 0 16px color-mix(in srgb, var(--status-on) 24%, transparent);
 }
 
 .project-tickbox input:active + .checkmark {
@@ -1498,10 +1557,12 @@ body.dark .project-manager-row {
 }
 
 .heart-container {
+  --heart-icon-size: 28px;
+  --heart-pop-duration: 620ms;
   position: relative;
   width: 50px;
   height: 50px;
-  transition: 0.3s;
+  transition: transform 0.22s ease;
   flex: 0 0 auto;
 }
 
@@ -1515,6 +1576,7 @@ body.dark .project-manager-row {
 }
 
 .heart-container .svg-container {
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
@@ -1522,75 +1584,124 @@ body.dark .project-manager-row {
   align-items: center;
 }
 
+.heart-container .svg-container::before {
+  content: "";
+  position: absolute;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 2px solid color-mix(in srgb, var(--heart-color) 64%, transparent);
+  opacity: 0;
+  transform: scale(0.45);
+  pointer-events: none;
+}
+
 .heart-container .svg-outline,
 .heart-container .svg-filled {
   position: absolute;
-  width: 28px;
-  height: 28px;
+  width: var(--heart-icon-size);
+  height: var(--heart-icon-size);
+  transform-origin: center;
+  pointer-events: none;
 }
 
 .heart-container .svg-outline {
   fill: var(--heart-outline-color);
+  opacity: 1;
+  transition:
+    transform 0.24s ease,
+    opacity 0.24s ease,
+    filter 0.24s ease;
 }
 
 .heart-container .svg-filled {
   fill: var(--heart-color);
+  opacity: 0;
+  transform: scale(0.45);
+  filter: drop-shadow(0 0 0 color-mix(in srgb, var(--heart-color) 0%, transparent));
 }
 
-.heart-container .svg-filled {
-  animation: keyframes-svg-filled 1s;
-  display: none;
+.heart-container:hover {
+  transform: scale(1.02);
 }
 
-.heart-container .svg-celebrate {
-  position: absolute;
-  width: 46px;
-  height: 46px;
-  animation: keyframes-svg-celebrate 0.5s;
-  animation-fill-mode: forwards;
-  display: none;
-  stroke: var(--heart-color);
-  fill: var(--heart-color);
-  stroke-width: 2px;
+.heart-container .checkbox:focus-visible ~ .svg-container .svg-outline {
+  filter: drop-shadow(0 0 7px color-mix(in srgb, var(--heart-color) 55%, transparent));
+  transform: scale(1.08);
 }
 
 .heart-container .checkbox:checked ~ .svg-container .svg-filled {
-  display: block;
+  opacity: 1;
+  transform: scale(1);
+  animation: keyframes-svg-filled var(--heart-pop-duration) cubic-bezier(0.24, 0.93, 0.34, 1.3);
+  animation-fill-mode: both;
 }
 
-.heart-container .checkbox:checked ~ .svg-container .svg-celebrate {
-  display: block;
+.heart-container .checkbox:checked ~ .svg-container .svg-outline {
+  opacity: 0.14;
+  transform: scale(0.74);
+  filter: blur(0.6px);
+}
+
+.heart-container .checkbox:checked ~ .svg-container::before {
+  animation: keyframes-heart-ring 0.55s ease-out;
 }
 
 @keyframes keyframes-svg-filled {
   0% {
-    transform: scale(0);
+    opacity: 0;
+    transform: scale(0.18) rotate(-18deg);
+    filter: brightness(1);
   }
 
-  25% {
-    transform: scale(1.2);
-  }
-
-  50% {
-    transform: scale(1);
-    filter: brightness(1.5);
-  }
-}
-
-@keyframes keyframes-svg-celebrate {
-  0% {
-    transform: scale(0);
-  }
-
-  50% {
+  35% {
     opacity: 1;
-    filter: brightness(1.5);
+    transform: scale(1.24) rotate(6deg);
+    filter: brightness(1.45);
+  }
+
+  58% {
+    transform: scale(0.94) rotate(-3deg);
+    filter: brightness(1.18);
+  }
+
+  82% {
+    transform: scale(1.08) rotate(1deg);
+    filter: brightness(1.26);
   }
 
   100% {
-    transform: scale(1.4);
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+    filter: brightness(1);
+  }
+}
+
+@keyframes keyframes-heart-ring {
+  0% {
+    opacity: 0.7;
+    transform: scale(0.45);
+  }
+
+  100% {
     opacity: 0;
-    display: none;
+    transform: scale(1.65);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .project-card,
+  .heart-container {
+    transition: none;
+  }
+
+  .project-card--reordering {
+    filter: none;
+  }
+
+  .heart-container .checkbox:checked ~ .svg-container::before,
+  .heart-container .checkbox:checked ~ .svg-container .svg-filled {
+    animation: none;
   }
 }
 
@@ -1687,13 +1798,13 @@ body.dark .project-manager-row {
     max-width: 100%;
   }
 
-  .search-input:focus,
-  .search-input:not(:placeholder-shown) {
+  .search-shell,
+  .project-search-container {
     width: 100%;
   }
 
-  .search-shell,
-  .search-input-wrapper {
+  .project-search-input:focus,
+  .project-search-input:not(:placeholder-shown) {
     width: 100%;
   }
 

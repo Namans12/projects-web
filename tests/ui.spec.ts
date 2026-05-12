@@ -9,6 +9,7 @@ const seedProjects = [
     repoUrl: "https://github.com/Namans12/4K-Videolyzer-2.git",
     status: "done",
     favorite: false,
+    favoriteOrder: null,
   },
   {
     id: "music-piper",
@@ -16,6 +17,7 @@ const seedProjects = [
     repoUrl: "https://github.com/Namans12/musicpipeline--best.git",
     status: "done",
     favorite: false,
+    favoriteOrder: null,
   },
   {
     id: "water-blogger",
@@ -23,6 +25,7 @@ const seedProjects = [
     repoUrl: "https://github.com/Namans12/water-logger.git",
     status: "done",
     favorite: false,
+    favoriteOrder: null,
   },
   {
     id: "health-hub",
@@ -30,6 +33,7 @@ const seedProjects = [
     repoUrl: "https://github.com/Namans12/health-hub.git",
     status: "done",
     favorite: false,
+    favoriteOrder: null,
   },
   {
     id: "watcher",
@@ -37,6 +41,7 @@ const seedProjects = [
     repoUrl: "https://github.com/Namans12/watchlist.git",
     status: "done",
     favorite: false,
+    favoriteOrder: null,
   },
   {
     id: "invoice-dashboard",
@@ -44,6 +49,7 @@ const seedProjects = [
     repoUrl: "https://github.com/your-username/invoice-dashboard",
     status: "pending",
     favorite: false,
+    favoriteOrder: null,
   },
   {
     id: "cli-repo-reporter",
@@ -51,6 +57,7 @@ const seedProjects = [
     repoUrl: "https://github.com/your-username/repo-reporter",
     status: "pending",
     favorite: false,
+    favoriteOrder: null,
   },
   {
     id: "changelog-generator",
@@ -58,6 +65,7 @@ const seedProjects = [
     repoUrl: "https://github.com/your-username/changelog-generator",
     status: "pending",
     favorite: false,
+    favoriteOrder: null,
   },
 ];
 
@@ -70,7 +78,8 @@ async function resetProjects() {
 }
 
 async function stabilize(page) {
-  await page.waitForLoadState("networkidle");
+  await page.waitForLoadState("domcontentloaded");
+  await expect(page.locator("#project-grid")).toBeVisible();
   await page.waitForTimeout(300);
 }
 
@@ -129,6 +138,32 @@ test.describe("Projects UI", () => {
     await expect(page.locator(".project-card")).toHaveCount(3);
   });
 
+  test("pending checkbox shows tick preview on hover", async ({ page }) => {
+    await page.goto("/");
+    await stabilize(page);
+
+    const tickbox = page.locator('.project-tickbox[data-project-id="invoice-dashboard"]');
+    await tickbox.hover();
+    await expect(tickbox).toHaveClass(/project-tickbox--preview/);
+    await page.waitForTimeout(250);
+
+    const preview = await tickbox.evaluate((element) => {
+      const shortStroke = element.querySelector(".tick-stroke--short");
+      const longStroke = element.querySelector(".tick-stroke--long");
+      if (!shortStroke || !longStroke) {
+        throw new Error("Missing tick stroke element");
+      }
+
+      return {
+        beforeOpacity: getComputedStyle(shortStroke).opacity,
+        afterOpacity: getComputedStyle(longStroke).opacity,
+      };
+    });
+
+    expect(preview.beforeOpacity).toBe("1");
+    expect(preview.afterOpacity).toBe("1");
+  });
+
   test("favorite toggle and manager dialog work", async ({ page }) => {
     await page.goto("/");
     await stabilize(page);
@@ -146,6 +181,34 @@ test.describe("Projects UI", () => {
     await expect(page.locator(".project-card").first()).toContainText("Invoice Dashboard");
   });
 
+  test("plus button opens add dialog while repo manager button opens manager", async ({ page }) => {
+    await page.goto("/");
+    await stabilize(page);
+
+    await page.locator("#add-project-button").click();
+    await expect(page.locator("#add-project-modal")).toBeVisible();
+    await expect(page.locator("#manager-modal")).toHaveCount(0);
+    await page.locator("#close-add-project-button").click();
+
+    await page.locator("#open-manager-button").click();
+    await expect(page.locator("#manager-modal")).toBeVisible();
+  });
+
+  test("projects created from plus flow appear in repo manager", async ({ page }) => {
+    await page.goto("/");
+    await stabilize(page);
+
+    await page.locator("#add-project-button").click();
+    await page.locator("#quick-project-title-input").fill("Fresh Repo");
+    await page.locator("#quick-project-repo-input").fill("https://github.com/example/fresh-repo");
+    await page.locator("#quick-add-project-form").getByRole("button", { name: "Save Repo" }).click();
+    await stabilize(page);
+
+    await page.locator("#open-manager-button").click();
+    await expect(page.locator("#project-manager-list .project-manager-row")).toHaveCount(9);
+    await expect(page.locator("#project-manager-list")).toContainText("Fresh Repo");
+  });
+
   test("search filters visible cards", async ({ page }) => {
     await page.goto("/");
     await stabilize(page);
@@ -154,6 +217,49 @@ test.describe("Projects UI", () => {
     await stabilize(page);
     await expect(page.locator(".project-card")).toHaveCount(1);
     await expect(page.locator(".project-card")).toContainText("Invoice Dashboard");
+  });
+
+  test("search filters on first letter and is case insensitive", async ({ page }) => {
+    await page.goto("/");
+    await stabilize(page);
+
+    await page.locator("#project-search-input").fill("i");
+    await stabilize(page);
+    await expect(page.locator(".project-card")).toHaveCount(2);
+
+    await page.locator("#project-search-input").fill("INVOICE");
+    await stabilize(page);
+    await expect(page.locator(".project-card")).toHaveCount(1);
+    await expect(page.locator(".project-card")).toContainText("Invoice Dashboard");
+  });
+
+  test("cannot create duplicate project titles or repo urls ignoring case", async ({ page }) => {
+    await page.goto("/");
+    await stabilize(page);
+
+    await page.locator("#add-project-button").click();
+    await page.locator("#quick-project-title-input").fill("invoice dashboard");
+    await page.locator("#quick-project-repo-input").fill("https://github.com/example/new-project");
+    await page.locator("#quick-add-project-form").getByRole("button", { name: "Save Repo" }).click();
+    await expect(page.locator("#quick-manager-feedback")).toContainText("already exists");
+
+    await page.locator("#quick-project-title-input").fill("Fresh Project");
+    await page.locator("#quick-project-repo-input").fill("https://github.com/YOUR-USERNAME/INVOICE-DASHBOARD/");
+    await page.locator("#quick-add-project-form").getByRole("button", { name: "Save Repo" }).click();
+    await expect(page.locator("#quick-manager-feedback")).toContainText("already exists");
+  });
+
+  test("favorites are ordered by like time", async ({ page }) => {
+    await page.goto("/");
+    await stabilize(page);
+
+    await page.locator('.project-favorite-toggle .checkbox[data-project-id="invoice-dashboard"]').click();
+    await stabilize(page);
+    await page.locator('.project-favorite-toggle .checkbox[data-project-id="cli-repo-reporter"]').click();
+    await stabilize(page);
+
+    await expect(page.locator(".project-card").nth(0)).toContainText("Invoice Dashboard");
+    await expect(page.locator(".project-card").nth(1)).toContainText("CLI Repo Reporter");
   });
 
   test("github icon keeps the same bottom offset in pending and done cards", async ({ page }) => {

@@ -38,12 +38,16 @@ const normalizeProject = (project) => {
   const status = project.status === "done" ? "done" : project.status === "pending" ? "pending" : null;
   const id = typeof project.id === "string" ? project.id.trim() : "";
   const favorite = typeof project.favorite === "boolean" ? project.favorite : false;
+  const favoriteOrder =
+    typeof project.favoriteOrder === "number" && Number.isFinite(project.favoriteOrder)
+      ? project.favoriteOrder
+      : null;
 
   if (!id || !title || !repoUrl || !status) {
     return null;
   }
 
-  return { id, title, repoUrl, status, favorite };
+  return { id, title, repoUrl, status, favorite, favoriteOrder };
 };
 
 const ensureDataFile = async () => {
@@ -62,6 +66,7 @@ const ensureDataFile = async () => {
             repoUrl: "https://github.com/Namans12/4K-Videolyzer-2.git",
             status: "done",
             favorite: false,
+            favoriteOrder: null,
           },
           {
             id: "music-piper",
@@ -69,6 +74,7 @@ const ensureDataFile = async () => {
             repoUrl: "https://github.com/Namans12/musicpipeline--best.git",
             status: "done",
             favorite: false,
+            favoriteOrder: null,
           },
           {
             id: "water-blogger",
@@ -76,6 +82,7 @@ const ensureDataFile = async () => {
             repoUrl: "https://github.com/Namans12/water-logger.git",
             status: "done",
             favorite: false,
+            favoriteOrder: null,
           },
           {
             id: "health-hub",
@@ -83,6 +90,7 @@ const ensureDataFile = async () => {
             repoUrl: "https://github.com/Namans12/health-hub.git",
             status: "done",
             favorite: false,
+            favoriteOrder: null,
           },
           {
             id: "watcher",
@@ -90,6 +98,7 @@ const ensureDataFile = async () => {
             repoUrl: "https://github.com/Namans12/watchlist.git",
             status: "done",
             favorite: false,
+            favoriteOrder: null,
           },
           {
             id: "invoice-dashboard",
@@ -97,6 +106,7 @@ const ensureDataFile = async () => {
             repoUrl: "https://github.com/your-username/invoice-dashboard",
             status: "pending",
             favorite: false,
+            favoriteOrder: null,
           },
           {
             id: "cli-repo-reporter",
@@ -104,6 +114,7 @@ const ensureDataFile = async () => {
             repoUrl: "https://github.com/your-username/repo-reporter",
             status: "pending",
             favorite: false,
+            favoriteOrder: null,
           },
           {
             id: "changelog-generator",
@@ -111,6 +122,7 @@ const ensureDataFile = async () => {
             repoUrl: "https://github.com/your-username/changelog-generator",
             status: "pending",
             favorite: false,
+            favoriteOrder: null,
           },
           {
             id: "docs-search-agent",
@@ -118,6 +130,7 @@ const ensureDataFile = async () => {
             repoUrl: "https://github.com/your-username/docs-search-agent",
             status: "pending",
             favorite: false,
+            favoriteOrder: null,
           },
         ],
         null,
@@ -172,6 +185,36 @@ const validateRepoUrl = (repoUrl) => {
   }
 };
 
+const normalizeTitleKey = (title) => title.trim().toLocaleLowerCase();
+
+const normalizeRepoUrlKey = (repoUrl) => {
+  const parsed = new URL(repoUrl.trim());
+  const normalizedPath = parsed.pathname.replace(/\/+$/, "").toLocaleLowerCase() || "/";
+  const normalizedSearch = parsed.search.toLocaleLowerCase();
+  return `${parsed.hostname.toLocaleLowerCase()}${normalizedPath}${normalizedSearch}`;
+};
+
+const projectConflicts = (projects, { title, repoUrl }, ignoreId = null) =>
+  projects.find((project) => {
+    if (ignoreId && project.id === ignoreId) {
+      return false;
+    }
+
+    return (
+      normalizeTitleKey(project.title) === normalizeTitleKey(title) ||
+      normalizeRepoUrlKey(project.repoUrl) === normalizeRepoUrlKey(repoUrl)
+    );
+  });
+
+const getNextFavoriteOrder = (projects) =>
+  projects.reduce((max, project) => {
+    if (typeof project.favoriteOrder === "number" && project.favoriteOrder > max) {
+      return project.favoriteOrder;
+    }
+
+    return max;
+  }, 0) + 1;
+
 const createId = () => `repo-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 const server = createServer(async (request, response) => {
@@ -216,7 +259,19 @@ const server = createServer(async (request, response) => {
       }
 
       const projects = await readProjects();
-      const nextProject = { id: createId(), title, repoUrl, status, favorite };
+      if (projectConflicts(projects, { title, repoUrl })) {
+        sendText(response, 400, "Project title or repo URL already exists.");
+        return;
+      }
+
+      const nextProject = {
+        id: createId(),
+        title,
+        repoUrl,
+        status,
+        favorite,
+        favoriteOrder: favorite ? getNextFavoriteOrder(projects) : null,
+      };
       projects.push(nextProject);
       await writeProjects(projects);
       sendJson(response, 201, nextProject);
@@ -236,9 +291,11 @@ const server = createServer(async (request, response) => {
       if (request.method === "PATCH") {
         const payload = await parsePayload(request);
         const nextProject = { ...projects[projectIndex] };
+        let nextTitle = nextProject.title;
+        let nextRepoUrl = nextProject.repoUrl;
 
         if (typeof payload.title === "string" && payload.title.trim()) {
-          nextProject.title = payload.title.trim();
+          nextTitle = payload.title.trim();
         }
 
         if (typeof payload.repoUrl === "string" && payload.repoUrl.trim()) {
@@ -247,8 +304,17 @@ const server = createServer(async (request, response) => {
             return;
           }
 
-          nextProject.repoUrl = payload.repoUrl.trim();
+          nextRepoUrl = payload.repoUrl.trim();
         }
+
+        const conflict = projectConflicts(projects, { title: nextTitle, repoUrl: nextRepoUrl }, nextProject.id);
+        if (conflict) {
+          sendText(response, 400, "Project title or repo URL already exists.");
+          return;
+        }
+
+        nextProject.title = nextTitle;
+        nextProject.repoUrl = nextRepoUrl;
 
         if (payload.status === "done" || payload.status === "pending") {
           nextProject.status = payload.status;
@@ -256,6 +322,9 @@ const server = createServer(async (request, response) => {
 
         if (typeof payload.favorite === "boolean") {
           nextProject.favorite = payload.favorite;
+          nextProject.favoriteOrder = payload.favorite
+            ? nextProject.favoriteOrder ?? getNextFavoriteOrder(projects)
+            : null;
         }
 
         projects[projectIndex] = nextProject;

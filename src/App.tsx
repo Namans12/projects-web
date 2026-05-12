@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ProjectCard } from "./components/ProjectCard";
+import { AddProjectModal } from "./components/AddProjectModal";
 import { RepoManagerModal } from "./components/RepoManagerModal";
 import { DoneConfirmModal } from "./components/DoneConfirmModal";
 import { useProjects } from "./hooks/useProjects";
@@ -14,10 +15,26 @@ const rocketImage =
 const normalizeRepoUrl = (value: string): string =>
   value.trim().match(/^https?:\/\//i) ? value.trim() : `https://${value.trim()}`;
 
+const normalizeTitleKey = (value: string) => value.trim().toLocaleLowerCase();
+
+const normalizeRepoUrlKey = (value: string) => {
+  const parsed = new URL(normalizeRepoUrl(value));
+  const normalizedPath = parsed.pathname.replace(/\/+$/, "").toLocaleLowerCase() || "/";
+  return `${parsed.hostname.toLocaleLowerCase()}${normalizedPath}${parsed.search.toLocaleLowerCase()}`;
+};
+
 const sortProjects = (items: Project[]): Project[] =>
   [...items].sort((left, right) => {
     if (left.favorite !== right.favorite) {
       return left.favorite ? -1 : 1;
+    }
+
+    if (left.favorite && right.favorite) {
+      const leftOrder = left.favoriteOrder ?? Number.MAX_SAFE_INTEGER;
+      const rightOrder = right.favoriteOrder ?? Number.MAX_SAFE_INTEGER;
+      if (leftOrder !== rightOrder) {
+        return leftOrder - rightOrder;
+      }
     }
 
     return left.title.localeCompare(right.title);
@@ -25,14 +42,19 @@ const sortProjects = (items: Project[]): Project[] =>
 
 export const App = () => {
   const { projects, loading, error, setError, createProject, updateProject, deleteProject } = useProjects();
+  const projectGridRef = useRef<HTMLElement | null>(null);
+  const previousCardPositionsRef = useRef<Map<string, DOMRect>>(new Map());
+  const reorderCleanupTimersRef = useRef<Map<HTMLElement, number>>(new Map());
   const [currentProjectStatus, setCurrentProjectStatus] = useState<ProjectStatus>(() => {
     const savedStatus = localStorage.getItem("project-view");
     return savedStatus === "done" || savedStatus === "pending" ? savedStatus : "pending";
   });
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("theme") === "dark");
   const [searchTerm, setSearchTerm] = useState("");
+  const [addModalOpen, setAddModalOpen] = useState(false);
   const [managerOpen, setManagerOpen] = useState(false);
   const [pendingDoneProjectId, setPendingDoneProjectId] = useState<string | null>(null);
+  const [addError, setAddError] = useState("");
   const [managerError, setManagerError] = useState("");
 
   useEffect(() => {
@@ -55,13 +77,35 @@ export const App = () => {
 
         if (managerOpen) {
           setManagerOpen(false);
+          return;
+        }
+
+        if (addModalOpen) {
+          setAddModalOpen(false);
         }
       }
     };
 
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [managerOpen, pendingDoneProjectId]);
+  }, [addModalOpen, managerOpen, pendingDoneProjectId]);
+
+  const handleCreateProject = async (project: { title: string; repoUrl: string; status: ProjectStatus; favorite: boolean }) => {
+    const normalizedRepoUrl = normalizeRepoUrl(project.repoUrl);
+    const hasConflict = projects.some((existingProject) =>
+      normalizeTitleKey(existingProject.title) === normalizeTitleKey(project.title) ||
+      normalizeRepoUrlKey(existingProject.repoUrl) === normalizeRepoUrlKey(normalizedRepoUrl)
+    );
+
+    if (hasConflict) {
+      throw new Error("Project title or repo URL already exists.");
+    }
+
+    await createProject({
+      ...project,
+      repoUrl: normalizedRepoUrl,
+    });
+  };
 
   const visibleProjects = sortProjects(projects).filter((project) => {
     if (project.status !== currentProjectStatus) {
@@ -73,11 +117,85 @@ export const App = () => {
       return true;
     }
 
-    return (
-      project.title.toLowerCase().includes(normalizedSearch) ||
-      project.repoUrl.toLowerCase().includes(normalizedSearch)
-    );
+    return project.title.toLowerCase().includes(normalizedSearch);
   });
+  const visibleProjectOrderKey = visibleProjects.map((project) => project.id).join("|");
+
+  useLayoutEffect(() => {
+    const grid = projectGridRef.current;
+    if (!grid) {
+      return;
+    }
+
+    const cards = Array.from(grid.querySelectorAll<HTMLElement>(".project-card[data-project-id]"));
+    const nextPositions = new Map<string, DOMRect>();
+
+    for (const card of cards) {
+      const projectId = card.dataset.projectId;
+      if (projectId) {
+        nextPositions.set(projectId, card.getBoundingClientRect());
+      }
+    }
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!prefersReducedMotion) {
+      for (const card of cards) {
+        const projectId = card.dataset.projectId;
+        if (!projectId) {
+          continue;
+        }
+
+        const previous = previousCardPositionsRef.current.get(projectId);
+        const next = nextPositions.get(projectId);
+        if (!previous || !next) {
+          continue;
+        }
+
+        const deltaX = previous.left - next.left;
+        const deltaY = previous.top - next.top;
+        if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) {
+          continue;
+        }
+
+        const activeTimer = reorderCleanupTimersRef.current.get(card);
+        if (typeof activeTimer === "number") {
+          window.clearTimeout(activeTimer);
+        }
+
+        card.getAnimations().forEach((animation) => animation.cancel());
+        card.classList.add("project-card--reordering");
+        card.animate(
+          [
+            { transform: `translate3d(${deltaX}px, ${deltaY}px, 0)` },
+            { transform: "translate3d(0, 0, 0)" },
+          ],
+          {
+            duration: 520,
+            easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+          }
+        );
+
+        const cleanupTimer = window.setTimeout(() => {
+          card.classList.remove("project-card--reordering");
+          reorderCleanupTimersRef.current.delete(card);
+        }, 560);
+
+        reorderCleanupTimersRef.current.set(card, cleanupTimer);
+      }
+    }
+
+    previousCardPositionsRef.current = nextPositions;
+  }, [visibleProjectOrderKey]);
+
+  useEffect(
+    () => () => {
+      for (const timer of reorderCleanupTimersRef.current.values()) {
+        window.clearTimeout(timer);
+      }
+      reorderCleanupTimersRef.current.clear();
+    },
+    []
+  );
 
   const apiMessage =
     error ?? (loading ? "Loading repositories..." : "");
@@ -123,28 +241,31 @@ export const App = () => {
                 type="button"
                 aria-label="Add project card"
                 onClick={() => {
-                  setManagerError("");
-                  setManagerOpen(true);
+                  setAddError("");
+                  setAddModalOpen(true);
                 }}
               >
-                +
+                <span className="add-project-button__plus" aria-hidden="true">+</span>
               </button>
               <div className="search-shell">
-                <div className="search-input-wrapper">
-                  <button className="search-icon" id="search-trigger" type="button" aria-label="Open search">
-                    <svg width="25" height="25" viewBox="0 0 24 24" fill="none" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M11.5 21C16.7467 21 21 16.7467 21 11.5C21 6.25329 16.7467 2 11.5 2C6.25329 2 2 6.25329 2 11.5C2 16.7467 6.25329 21 11.5 21Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
-                      <path d="M22 22L20 20" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"></path>
-                    </svg>
-                  </button>
+                <div className="project-search-container">
                   <input
                     type="text"
+                    name="text"
                     id="project-search-input"
-                    className="search-input"
-                    placeholder="search.."
+                    className="project-search-input"
+                    required
+                    placeholder="Type to search..."
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
                   />
+                  <div className="project-search-icon" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="ionicon" viewBox="0 0 512 512">
+                      <title>Search</title>
+                      <path d="M221.09 64a157.09 157.09 0 10157.09 157.09A157.1 157.1 0 00221.09 64z" fill="none" stroke="currentColor" strokeMiterlimit="10" strokeWidth="32" />
+                      <path fill="none" stroke="currentColor" strokeLinecap="round" strokeMiterlimit="10" strokeWidth="32" d="M338.29 338.29L448 448" />
+                    </svg>
+                  </div>
                 </div>
               </div>
             </div>
@@ -200,7 +321,7 @@ export const App = () => {
           {apiMessage}
         </p>
 
-        <section className={`project-grid${loading ? " is-updating" : ""}`} id="project-grid" aria-label="Project cards">
+        <section ref={projectGridRef} className={`project-grid${loading ? " is-updating" : ""}`} id="project-grid" aria-label="Project cards">
           {loading ? (
             <p className="empty-state">Loading repositories...</p>
           ) : visibleProjects.length ? (
@@ -235,6 +356,22 @@ export const App = () => {
           Repo Manager
         </button>
 
+        <AddProjectModal
+          open={addModalOpen}
+          currentStatus={currentProjectStatus}
+          errorMessage={addError}
+          onClose={() => setAddModalOpen(false)}
+          onClearError={() => setAddError("")}
+          onCreateProject={async (project) => {
+            try {
+              await handleCreateProject(project);
+            } catch (nextError) {
+              setAddError(nextError instanceof Error ? nextError.message : "Unable to save project.");
+              throw nextError;
+            }
+          }}
+        />
+
         <RepoManagerModal
           open={managerOpen}
           currentStatus={currentProjectStatus}
@@ -244,10 +381,7 @@ export const App = () => {
           onClearError={() => setManagerError("")}
           onCreateProject={async (project) => {
             try {
-              await createProject({
-                ...project,
-                repoUrl: normalizeRepoUrl(project.repoUrl),
-              });
+              await handleCreateProject(project);
             } catch (nextError) {
               setManagerError(nextError instanceof Error ? nextError.message : "Unable to save project.");
               throw nextError;
