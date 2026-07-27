@@ -87,6 +87,16 @@ This repo carries an AI-assisted workflow: [`AI_AGENTS.md`](AI_AGENTS.md) define
 
 This scaffolding is independent of the page itself and is arguably the more transferable part of the repository.
 
+## Branches
+
+| Branch | Date | Ahead | Contents |
+|---|---|---|---|
+| `master` *(default)* | 2026-06-15 | — | Vanilla-TypeScript showcase page |
+| `Improved` | 2026-04-18 | +3 | Migration plus gradient styling — `grad.css`, `gradients.css`; 23 files, +3385/−286 |
+| `Improved2` | 2026-05-12 | **+4** | Everything in `Improved` plus further changes — 43 files, +6276/−288. Also carries `graphify-out/` knowledge-graph chunks and a `.graphify_python` marker |
+
+`Improved2` is the head. Both branches predate `master`'s last commit by calendar date but are ahead of it in commits — they were developed in parallel and never merged.
+
 ## Related Repositories
 
 | Repo | Relationship |
